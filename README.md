@@ -155,6 +155,7 @@ Vait/
 ├── requirements.txt            # Project dependencies (PySide6, pytest)
 ├── main.py                     # Application entry point
 ├── README.md                   # Documentation and usage guide
+├── assets/                     # Application icons (PNG, ICO)
 ├── vait/
 │   ├── __init__.py
 │   ├── constants.py            # App enums, defaults, and MIME types

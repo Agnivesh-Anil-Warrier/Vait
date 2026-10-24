@@ -37,7 +37,7 @@ from vait.storage.project_file import ProjectFileManager
 from vait.storage.exporter import CanvasExporter
 from vait.items import BaseCanvasItem, ShapeItem, ImageItem
 from vait.commands.undo_commands import ChangePropertyCommand
-from vait.ui.icons import create_icon
+from vait.ui.icons import create_icon, create_app_icon
 from vait.ui.properties_panel import PropertiesPanel
 from vait.ui.status_bar import CanvasStatusBar
 
@@ -47,6 +47,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(f"Untitled[*] — {APP_NAME}")
+        self.setWindowIcon(create_app_icon())
         self.resize(1280, 800)
 
         # Settings for recent files and window state

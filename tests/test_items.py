@@ -97,3 +97,13 @@ def test_image_item_lifecycle(qapp):
     assert isinstance(restored, ImageItem)
     assert restored.pos() == QPointF(15, 25)
     assert not restored.pixmap.isNull()
+
+def test_create_app_icon(qapp):
+    from vait.ui.icons import create_app_icon, render_app_icon_pixmap
+    icon = create_app_icon()
+    assert not icon.isNull()
+    pix = render_app_icon_pixmap(64)
+    assert not pix.isNull()
+    assert pix.width() == 64
+    assert pix.height() == 64
+

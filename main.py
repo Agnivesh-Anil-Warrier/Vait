@@ -7,15 +7,25 @@ from PySide6.QtCore import Qt
 
 from vait.constants import APP_NAME, APP_VERSION
 from vait.ui.theme import DARK_THEME_QSS
+from vait.ui.icons import create_app_icon
 from vait.ui.main_window import MainWindow
 
 def main():
+    # Set Windows taskbar / process app model ID so custom icon displays properly
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("vait.whiteboard.desktop.1.0")
+        except Exception:
+            pass
+
     # Set application details
     QApplication.setApplicationName(APP_NAME)
     QApplication.setApplicationVersion(APP_VERSION)
     QApplication.setOrganizationName("Vait")
 
     app = QApplication(sys.argv)
+    app.setWindowIcon(create_app_icon())
 
     # Set default modern system font
     font = QFont("Segoe UI", 10)

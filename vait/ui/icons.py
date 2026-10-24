@@ -1,7 +1,18 @@
 """Programmatic vector icon generation using QPainter for crisp high-DPI rendering."""
 
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QIcon, QPixmap, QPainter, QPen, QBrush, QColor, QPolygonF, QPainterPath
+from PySide6.QtGui import (
+    QIcon,
+    QPixmap,
+    QImage,
+    QPainter,
+    QPen,
+    QBrush,
+    QColor,
+    QPolygonF,
+    QPainterPath,
+    QLinearGradient
+)
 
 def _render_icon_pixmap(name: str, color: str, size: int) -> QPixmap:
     scale_factor = 2  # 2x supersampling for high-DPI crispness
@@ -219,3 +230,87 @@ def create_icon(name: str, color: str = "#f1f5f9", size: int = 24) -> QIcon:
     icon.addPixmap(disabled_pix, QIcon.Mode.Disabled, QIcon.State.On)
 
     return icon
+ 
+def render_app_icon_pixmap(size: int = 512) -> QPixmap:
+    """Render the sleek Vait application icon at a specific resolution.
+    
+    Features a dark sky blue gradient squircle backdrop with subtle frosted rim
+    highlighting and an elegant, fluid white whiteboard scribble stroke.
+    """
+    img = QImage(size, size, QImage.Format.Format_ARGB32_Premultiplied)
+    img.fill(Qt.GlobalColor.transparent)
+
+    painter = QPainter(img)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+
+    scale = size / 512.0
+    painter.scale(scale, scale)
+
+    margin = 28.0
+    rect = QRectF(margin, margin, 512.0 - 2 * margin, 512.0 - 2 * margin)
+    radius = 112.0
+
+    # Backdrop: Dark sky blue gradient (luminous cerulean to deep oceanic sky base)
+    grad = QLinearGradient(rect.topLeft(), rect.bottomRight())
+    grad.setColorAt(0.0, QColor(18, 130, 192))   # Vibrant dark sky blue
+    grad.setColorAt(0.48, QColor(10, 86, 140))  # Deep oceanic sky
+    grad.setColorAt(1.0, QColor(5, 46, 80))     # Midnight sky blue base
+
+    painter.setPen(Qt.PenStyle.NoPen)
+    painter.setBrush(QBrush(grad))
+    painter.drawRoundedRect(rect, radius, radius)
+
+    # Sleek frosted rim highlight
+    rim_grad = QLinearGradient(rect.topLeft(), rect.bottomLeft())
+    rim_grad.setColorAt(0.0, QColor(255, 255, 255, 75))
+    rim_grad.setColorAt(0.35, QColor(255, 255, 255, 20))
+    rim_grad.setColorAt(1.0, QColor(255, 255, 255, 0))
+    painter.setPen(QPen(QBrush(rim_grad), 3.5))
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+    painter.drawRoundedRect(rect.adjusted(1.5, 1.5, -1.5, -1.5), radius - 1.5, radius - 1.5)
+
+    # Scribble vector path
+    path = QPainterPath()
+    path.moveTo(115, 270)
+    path.cubicTo(150, 312, 190, 312, 220, 245)
+    path.cubicTo(250, 175, 225, 135, 185, 165)
+    path.cubicTo(140, 200, 165, 305, 270, 305)
+    path.cubicTo(350, 305, 380, 210, 345, 150)
+    path.cubicTo(315, 105, 265, 160, 300, 240)
+    path.cubicTo(330, 310, 380, 305, 410, 260)
+
+    painter.save()
+    painter.translate(256, 256)
+    painter.rotate(-6)
+    painter.translate(-256, -256)
+
+    # Soft ambient shadow under the scribble for depth
+    shadow_pen = QPen(QColor(2, 25, 48, 80), 32.0, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    painter.save()
+    painter.translate(0, 4)
+    painter.setPen(shadow_pen)
+    painter.drawPath(path)
+    painter.restore()
+
+    # Crisp pure white scribble stroke
+    stroke_pen = QPen(QColor(255, 255, 255, 255), 32.0, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    painter.setPen(stroke_pen)
+    painter.drawPath(path)
+    painter.restore()
+
+    painter.end()
+    return QPixmap.fromImage(img)
+
+
+def create_app_icon() -> QIcon:
+    """Generate multi-resolution high-DPI QIcon for the titlebar and Windows shell."""
+    icon = QIcon()
+    # High-res base master
+    master = render_app_icon_pixmap(512)
+    # Add all standard Windows / Qt resolutions for pixel-perfect titlebar & taskbar display
+    for s in (16, 20, 24, 32, 48, 64, 128, 256, 512):
+        scaled = master.scaled(s, s, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        icon.addPixmap(scaled)
+    return icon
+
