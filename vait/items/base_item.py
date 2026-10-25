@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QPainter, QCursor, QPainterPath
 
+from vait.constants import ToolMode
 from vait.items.handles import (
     HandleId,
     get_handle_at_pos,
@@ -141,8 +142,20 @@ class BaseCanvasItem(QGraphicsObject):
         """Subclasses implement specific rendering here."""
         pass
 
+    def hoverEnterEvent(self, event: QGraphicsSceneHoverEvent):
+        scene = self.scene()
+        if scene and getattr(scene, "current_tool", ToolMode.SELECT) != ToolMode.SELECT:
+            self.unsetCursor()
+            return
+        super().hoverEnterEvent(event)
+
     def hoverMoveEvent(self, event: QGraphicsSceneHoverEvent):
         """Update cursor based on hovered handle when selected."""
+        scene = self.scene()
+        if scene and getattr(scene, "current_tool", ToolMode.SELECT) != ToolMode.SELECT:
+            self.unsetCursor()
+            return
+
         if self.isSelected():
             scale = self.get_view_scale()
             p1 = getattr(self, "p1", None)

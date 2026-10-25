@@ -377,11 +377,15 @@ class PropertiesPanel(QFrame):
             self.chk_fill_transparent.blockSignals(False)
         elif isinstance(primary, StrokeItem):
             self.scene.pen_color = primary.color
-            self.scene.pen_width = primary.stroke_width
+            screen_w = getattr(primary, "screen_brush_width", None)
+            if screen_w is None:
+                zoom = self.scene.get_current_zoom_scale()
+                screen_w = max(1.0, round(primary.stroke_width * zoom))
+            self.scene.pen_width = float(screen_w)
 
             self.btn_stroke_color.setIcon(make_color_icon(primary.color))
             self.spin_stroke_width.blockSignals(True)
-            self.spin_stroke_width.setValue(int(primary.stroke_width))
+            self.spin_stroke_width.setValue(int(screen_w))
             self.spin_stroke_width.blockSignals(False)
         elif isinstance(primary, TextItem):
             self.btn_stroke_color.setIcon(make_color_icon(primary.text_color))
@@ -569,11 +573,22 @@ class PropertiesPanel(QFrame):
         self.scene.shape_stroke_width = float(val)
 
         if self._current_items:
-            targets = [it for it in self._current_items if isinstance(it, (ShapeItem, StrokeItem))]
-            if targets:
-                prop_name = "stroke_width"
-                old_vals = [getattr(it, prop_name) for it in targets]
-                cmd = ChangePropertyCommand(targets, prop_name, old_vals, [float(val)] * len(targets))
+            # 1. Shape items (scene stroke width)
+            shape_targets = [it for it in self._current_items if isinstance(it, ShapeItem)]
+            if shape_targets:
+                old_vals = [it.stroke_width for it in shape_targets]
+                cmd = ChangePropertyCommand(shape_targets, "stroke_width", old_vals, [float(val)] * len(shape_targets))
+                self.undo_stack.push(cmd)
+
+            # 2. Stroke items (zoom-adjusted scene width)
+            stroke_targets = [it for it in self._current_items if isinstance(it, StrokeItem)]
+            if stroke_targets:
+                zoom = self.scene.get_current_zoom_scale()
+                new_scene_w = float(val) / max(zoom, 0.0001)
+                old_vals = [it.stroke_width for it in stroke_targets]
+                for it in stroke_targets:
+                    it.screen_brush_width = float(val)
+                cmd = ChangePropertyCommand(stroke_targets, "stroke_width", old_vals, [new_scene_w] * len(stroke_targets))
                 self.undo_stack.push(cmd)
 
     def _on_fill_transparent_toggled(self, checked: bool):

@@ -23,10 +23,13 @@ from vait.constants import (
     MIN_ZOOM,
     MAX_ZOOM,
     DEFAULT_ZOOM,
+    DEFAULT_PEN_WIDTH,
+    DEFAULT_PEN_COLOR,
     ToolMode
 )
 from vait.items import ImageItem, BaseCanvasItem
 from vait.items.handles import HandleId, get_handle_at_pos
+from vait.ui.icons import create_brush_cursor
 
 class InfiniteCanvasView(QGraphicsView):
     """Modern infinite canvas viewport with hardware-accelerated rendering and natural gestures."""
@@ -72,6 +75,80 @@ class InfiniteCanvasView(QGraphicsView):
         # Current zoom multiplier
         self._zoom: float = DEFAULT_ZOOM
 
+        # Connect scene signals for cursor tracking
+        self._connected_scene = None
+        self._connect_scene(scene)
+        self.update_canvas_cursor()
+
+    def setScene(self, scene: QGraphicsScene):
+        super().setScene(scene)
+        self._connect_scene(scene)
+        self.update_canvas_cursor()
+
+    def _connect_scene(self, scene):
+        if scene is None or self._connected_scene == scene:
+            return
+        self._connected_scene = scene
+        if hasattr(scene, "tool_changed"):
+            try:
+                scene.tool_changed.connect(lambda _: self.update_canvas_cursor())
+            except Exception:
+                pass
+        if hasattr(scene, "pen_properties_changed"):
+            try:
+                scene.pen_properties_changed.connect(self.update_canvas_cursor)
+            except Exception:
+                pass
+
+    def update_canvas_cursor(self):
+        """Update viewport cursor according to active tool, zoom, and mouse modifier state."""
+        # 1. Panning states have priority
+        if self._is_panning:
+            cur = QCursor(Qt.CursorShape.ClosedHandCursor)
+            self.viewport().setCursor(cur)
+            self.setCursor(cur)
+            return
+        if self._space_pressed:
+            cur = QCursor(Qt.CursorShape.OpenHandCursor)
+            self.viewport().setCursor(cur)
+            self.setCursor(cur)
+            return
+
+        canvas_scene = self.scene()
+        tool = getattr(canvas_scene, "current_tool", ToolMode.SELECT) if canvas_scene else ToolMode.SELECT
+
+        # 2. PEN tool: display circular brush cursor whose diameter matches screen-space brush size
+        if tool == ToolMode.PEN:
+            dpr = self.devicePixelRatioF() if hasattr(self, "devicePixelRatioF") else 1.0
+            pen_width = getattr(canvas_scene, "pen_width", DEFAULT_PEN_WIDTH)
+            pen_color = getattr(canvas_scene, "pen_color", DEFAULT_PEN_COLOR)
+            brush_cursor = create_brush_cursor(diameter=pen_width, color=pen_color, dpr=dpr)
+            self.viewport().setCursor(brush_cursor)
+            self.setCursor(brush_cursor)
+        elif tool == ToolMode.PAN:
+            cur = QCursor(Qt.CursorShape.OpenHandCursor)
+            self.viewport().setCursor(cur)
+            self.setCursor(cur)
+        elif tool == ToolMode.ERASER:
+            cur = QCursor(Qt.CursorShape.CrossCursor)
+            self.viewport().setCursor(cur)
+            self.setCursor(cur)
+        elif tool == ToolMode.TEXT:
+            cur = QCursor(Qt.CursorShape.IBeamCursor)
+            self.viewport().setCursor(cur)
+            self.setCursor(cur)
+        elif tool == ToolMode.SHAPE:
+            cur = QCursor(Qt.CursorShape.CrossCursor)
+            self.viewport().setCursor(cur)
+            self.setCursor(cur)
+        else:  # SELECT or default
+            self.viewport().unsetCursor()
+            self.unsetCursor()
+
+    def enterEvent(self, event):
+        super().enterEvent(event)
+        self.update_canvas_cursor()
+
     @property
     def zoom_level(self) -> float:
         return self._zoom
@@ -83,7 +160,10 @@ class InfiniteCanvasView(QGraphicsView):
         self._zoom = new_zoom
 
         self.scale(factor, factor)
+        if self.scene() and hasattr(self.scene(), "set_zoom_scale"):
+            self.scene().set_zoom_scale(self._zoom)
         self.zoom_changed.emit(self._zoom)
+        self.update_canvas_cursor()
 
     def zoom_in(self):
         """Zoom in by 15%."""
@@ -98,7 +178,10 @@ class InfiniteCanvasView(QGraphicsView):
         factor = 1.0 / self._zoom
         self._zoom = 1.0
         self.scale(factor, factor)
+        if self.scene() and hasattr(self.scene(), "set_zoom_scale"):
+            self.scene().set_zoom_scale(1.0)
         self.zoom_changed.emit(1.0)
+        self.update_canvas_cursor()
 
     def fit_content(self):
         """Fit all canvas items in view with generous margin."""
@@ -108,7 +191,10 @@ class InfiniteCanvasView(QGraphicsView):
             self.fitInView(padded_rect, Qt.AspectRatioMode.KeepAspectRatio)
             # Update internal zoom tracking
             self._zoom = self.transform().m11()
+            if self.scene() and hasattr(self.scene(), "set_zoom_scale"):
+                self.scene().set_zoom_scale(self._zoom)
             self.zoom_changed.emit(self._zoom)
+            self.update_canvas_cursor()
 
     def get_view_state(self) -> dict:
         """Capture current viewport center and zoom for project saving."""
@@ -144,7 +230,10 @@ class InfiniteCanvasView(QGraphicsView):
             self._zoom = new_zoom
 
             self.scale(actual_factor, actual_factor)
+            if self.scene() and hasattr(self.scene(), "set_zoom_scale"):
+                self.scene().set_zoom_scale(self._zoom)
             self.zoom_changed.emit(self._zoom)
+            self.update_canvas_cursor()
             event.accept()
 
     def mousePressEvent(self, event: QMouseEvent):
@@ -253,10 +342,7 @@ class InfiniteCanvasView(QGraphicsView):
     def mouseReleaseEvent(self, event: QMouseEvent):
         if self._is_panning:
             self._is_panning = False
-            if self._space_pressed:
-                self.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
-            else:
-                self.unsetCursor()
+            self.update_canvas_cursor()
             event.accept()
             return
 
@@ -278,7 +364,7 @@ class InfiniteCanvasView(QGraphicsView):
         if event.key() == Qt.Key.Key_Space and not event.isAutoRepeat():
             self._space_pressed = True
             if not self._is_panning:
-                self.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
+                self.update_canvas_cursor()
             event.accept()
             return
         super().keyPressEvent(event)
@@ -287,7 +373,7 @@ class InfiniteCanvasView(QGraphicsView):
         if event.key() == Qt.Key.Key_Space and not event.isAutoRepeat():
             self._space_pressed = False
             if not self._is_panning:
-                self.unsetCursor()
+                self.update_canvas_cursor()
             event.accept()
             return
         super().keyReleaseEvent(event)

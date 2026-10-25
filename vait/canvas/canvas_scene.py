@@ -42,6 +42,7 @@ class InfiniteCanvasScene(QGraphicsScene):
     status_message = Signal(str)
     selection_state_changed = Signal(list)  # List of selected BaseCanvasItems
     tool_changed = Signal(object)  # Emits ToolMode when active tool changes
+    pen_properties_changed = Signal()  # Emits when screen brush size or color changes
 
     def __init__(self, undo_stack, parent=None):
         half_ext = SCENE_EXTENT / 2.0
@@ -58,8 +59,11 @@ class InfiniteCanvasScene(QGraphicsScene):
         self.current_shape_type: ShapeType = ShapeType.RECTANGLE
 
         # Tool properties for new objects
-        self.pen_color: str = DEFAULT_PEN_COLOR
-        self.pen_width: float = DEFAULT_PEN_WIDTH
+        # Note: pen_width represents visible brush size at 100% zoom in screen pixels
+        self._pen_color: str = DEFAULT_PEN_COLOR
+        self._pen_width: float = float(DEFAULT_PEN_WIDTH)
+        self._zoom_scale: float = 1.0
+
         self.shape_stroke_color: str = DEFAULT_STROKE_COLOR
         self.shape_stroke_width: float = DEFAULT_STROKE_WIDTH
         self.shape_fill_color: str = DEFAULT_FILL_COLOR
@@ -75,6 +79,41 @@ class InfiniteCanvasScene(QGraphicsScene):
         self._start_item_positions: list[QPointF] = []
         self._is_moving_selection: bool = False
         self.selectionChanged.connect(self._on_selection_changed)
+
+    @property
+    def pen_width(self) -> float:
+        """Configured visible brush size at 100% zoom in screen pixels."""
+        return self._pen_width
+
+    @pen_width.setter
+    def pen_width(self, val: float):
+        new_val = max(1.0, float(val))
+        if getattr(self, "_pen_width", None) != new_val:
+            self._pen_width = new_val
+            self.pen_properties_changed.emit()
+
+    @property
+    def pen_color(self) -> str:
+        return self._pen_color
+
+    @pen_color.setter
+    def pen_color(self, val: str):
+        new_val = str(val)
+        if getattr(self, "_pen_color", None) != new_val:
+            self._pen_color = new_val
+            self.pen_properties_changed.emit()
+
+    def get_current_zoom_scale(self) -> float:
+        """Return the current active view transformation zoom scale (1.0 = 100%)."""
+        for view in self.views():
+            scale = view.transform().m11()
+            if scale > 0:
+                return scale
+        return getattr(self, "_zoom_scale", 1.0)
+
+    def set_zoom_scale(self, scale: float):
+        """Update tracked zoom scale."""
+        self._zoom_scale = max(0.0001, float(scale))
 
     def addItem(self, item):
         super().addItem(item)
@@ -178,12 +217,24 @@ class InfiniteCanvasScene(QGraphicsScene):
 
         # Tool: PEN
         if self.current_tool == ToolMode.PEN:
+            # Query the actual view transform zoom scale if event originated from a view
+            zoom_scale = 1.0
+            widget = event.widget()
+            if widget and widget.parent() and hasattr(widget.parent(), "transform"):
+                zoom_scale = widget.parent().transform().m11()
+            else:
+                zoom_scale = self.get_current_zoom_scale()
+
+            # Constant screen-space brush: scene_brush_width = screen_brush_width / zoom_scale
+            scene_brush_width = self.pen_width / max(zoom_scale, 0.0001)
+
             top_z = max([it.zValue() for it in self.items()] + [Z_STROKE])
             self._current_stroke = StrokeItem(
                 points=[pos],
                 color=self.pen_color,
-                width=self.pen_width
+                width=scene_brush_width
             )
+            self._current_stroke.screen_brush_width = self.pen_width
             self._current_stroke.setZValue(top_z + 0.1)
             self.addItem(self._current_stroke)
             event.accept()

@@ -1,5 +1,6 @@
 """Programmatic vector icon generation using QPainter for crisp high-DPI rendering."""
 
+from PySide6.QtGui import QCursor
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (
     QIcon,
@@ -313,4 +314,72 @@ def create_app_icon() -> QIcon:
         scaled = master.scaled(s, s, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
         icon.addPixmap(scaled)
     return icon
+
+
+def create_brush_cursor(diameter: float, color: str = "#2563eb", dpr: float = 1.0) -> QCursor:
+    """Create a circular brush cursor whose diameter matches the configured screen-space brush size.
+    
+    The cursor features:
+    - Diameter matching the configured screen-space brush size in screen pixels.
+    - Dual high-contrast boundary ring (dark outer shadow + bright inner ring)
+      guaranteeing visibility on any canvas background (dark, light, or over drawn items).
+    - Subtle brush color tint fill.
+    - Precision center dot for diameter >= 7px.
+    - Centered hotspot precisely matching the pointer position.
+    """
+    from PySide6.QtGui import QCursor
+
+    d = max(1.0, float(diameter))
+    # Pad around circle so antialiased boundary is not clipped
+    pad = 4.0
+    logical_size = int(d + pad * 2.0)
+    if logical_size % 2 == 0:
+        logical_size += 1
+    logical_size = max(logical_size, 11)
+
+    hotspot = logical_size // 2
+    center = float(hotspot)
+    r = d / 2.0
+
+    phys_size = int(round(logical_size * dpr))
+    pixmap = QPixmap(phys_size, phys_size)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    pixmap.setDevicePixelRatio(dpr)
+
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+    rect = QRectF(center - r, center - r, d, d)
+
+    if d < 3.0:
+        # For 1-2px brush: draw 1px center dot with contrasting border
+        painter.setPen(QPen(QColor(0, 0, 0, 220), 1.0))
+        painter.setBrush(QColor(255, 255, 255, 255))
+        painter.drawEllipse(QRectF(center - 1.5, center - 1.5, 3.0, 3.0))
+    else:
+        # Subtle tint fill of brush color so user sees the footprint clearly
+        pen_col = QColor(color)
+        pen_col.setAlpha(35)
+        painter.setBrush(pen_col)
+
+        # 1px Dark outer border for contrast on light canvas
+        painter.setPen(QPen(QColor(0, 0, 0, 160), 1.2))
+        painter.drawEllipse(rect)
+
+        # 1px Bright inner ring for contrast on dark canvas
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.setPen(QPen(QColor(255, 255, 255, 230), 1.0))
+        painter.drawEllipse(rect)
+
+        # Tiny center dot for precision on larger brushes
+        if d >= 7.0:
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(0, 0, 0, 180))
+            painter.drawEllipse(QPointF(center, center), 1.2, 1.2)
+            painter.setBrush(QColor(255, 255, 255, 240))
+            painter.drawEllipse(QPointF(center, center), 0.7, 0.7)
+
+    painter.end()
+    return QCursor(pixmap, hotspot, hotspot)
+
 

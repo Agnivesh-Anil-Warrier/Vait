@@ -31,6 +31,7 @@ class StrokeItem(BaseCanvasItem):
 
         self.color: str = color
         self.stroke_width: float = width
+        self.screen_brush_width: Optional[float] = None
         self.points: list[QPointF] = []
         self._path: QPainterPath = QPainterPath()
 
@@ -174,6 +175,7 @@ class StrokeItem(BaseCanvasItem):
         d.update({
             "color": self.color,
             "stroke_width": self.stroke_width,
+            "screen_brush_width": self.screen_brush_width,
             "points": [(p.x(), p.y()) for p in self.points]
         })
         return d
@@ -182,6 +184,7 @@ class StrokeItem(BaseCanvasItem):
         super().from_dict(data)
         self.color = data.get("color", DEFAULT_PEN_COLOR)
         self.stroke_width = data.get("stroke_width", DEFAULT_PEN_WIDTH)
+        self.screen_brush_width = data.get("screen_brush_width", None)
         pts_data = data.get("points", [])
         self.points = [QPointF(x, y) for x, y in pts_data]
         self._rebuild_path()
