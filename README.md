@@ -1,6 +1,6 @@
 <div align="center">
   <img src="assets/icon.png" alt="Vait Whiteboard Logo" width="128" height="128" />
-  <h1>Vait — Infinite Canvas Whiteboard</h1>
+  <h1>Vait - Infinite Canvas Whiteboard</h1>
   <p><strong>A modern, high-performance Windows desktop application built with Python and PySide6 (Qt for Python).</strong></p>
 
   <p>
