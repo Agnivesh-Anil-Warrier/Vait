@@ -192,8 +192,79 @@ QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus, QLineEdit:focus {
 }
 
 QComboBox::drop-down {
-    border: none;
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
     width: 20px;
+    border: none;
+}
+
+QComboBox::down-arrow {
+    image: none;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid #94a3b8;
+    margin-right: 6px;
+}
+
+QComboBox::down-arrow:hover {
+    border-top-color: #f8fafc;
+}
+
+/* ComboBox Dropdown View */
+QComboBox QAbstractItemView {
+    background-color: #1e293b;
+    color: #f8fafc;
+    selection-background-color: #2563eb;
+    selection-color: #ffffff;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 4px;
+    outline: none;
+}
+
+QComboBox QAbstractItemView::item {
+    color: #f8fafc;
+    min-height: 26px;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+QComboBox QAbstractItemView::item:selected {
+    background-color: #2563eb;
+    color: #ffffff;
+}
+
+QComboBox QAbstractItemView::item:hover {
+    background-color: #334155;
+    color: #ffffff;
+}
+
+/* Item Views generally */
+QListView, QTreeView, QTableView, QAbstractItemView {
+    background-color: #1e293b;
+    color: #f8fafc;
+    selection-background-color: #2563eb;
+    selection-color: #ffffff;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    outline: none;
+}
+
+QListView::item, QTreeView::item, QTableView::item {
+    color: #f8fafc;
+    padding: 4px 8px;
+}
+
+QListView::item:selected, QTreeView::item:selected, QTableView::item:selected {
+    background-color: #2563eb;
+    color: #ffffff;
+}
+
+QListView::item:hover, QTreeView::item:hover, QTableView::item:hover {
+    background-color: #334155;
+    color: #ffffff;
 }
 
 /* Tooltip */
@@ -239,3 +310,39 @@ QRubberBand {
     background-color: rgba(59, 130, 246, 0.22);
 }
 """
+
+from PySide6.QtGui import QPalette, QColor
+
+def get_dark_palette() -> QPalette:
+    """Return a unified dark mode QPalette for the application."""
+    palette = QPalette()
+    bg_dark = QColor("#0f172a")
+    card_dark = QColor("#1e293b")
+    border_dark = QColor("#334155")
+    text_primary = QColor("#f8fafc")
+    disabled_text = QColor("#64748b")
+    accent_blue = QColor("#2563eb")
+
+    palette.setColor(QPalette.ColorRole.Window, bg_dark)
+    palette.setColor(QPalette.ColorRole.WindowText, text_primary)
+    palette.setColor(QPalette.ColorRole.Base, card_dark)
+    palette.setColor(QPalette.ColorRole.AlternateBase, bg_dark)
+    palette.setColor(QPalette.ColorRole.ToolTipBase, bg_dark)
+    palette.setColor(QPalette.ColorRole.ToolTipText, text_primary)
+    palette.setColor(QPalette.ColorRole.Text, text_primary)
+    palette.setColor(QPalette.ColorRole.Button, card_dark)
+    palette.setColor(QPalette.ColorRole.ButtonText, text_primary)
+    palette.setColor(QPalette.ColorRole.BrightText, QColor("#ffffff"))
+    palette.setColor(QPalette.ColorRole.Highlight, accent_blue)
+    palette.setColor(QPalette.ColorRole.HighlightedText, QColor("#ffffff"))
+    palette.setColor(QPalette.ColorRole.Link, QColor("#3b82f6"))
+    palette.setColor(QPalette.ColorRole.PlaceholderText, disabled_text)
+
+    # Disabled colors
+    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText, disabled_text)
+    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, disabled_text)
+    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, disabled_text)
+    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Highlight, border_dark)
+
+    return palette
+

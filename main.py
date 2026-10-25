@@ -6,7 +6,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt
 
 from vait.constants import APP_NAME, APP_VERSION
-from vait.ui.theme import DARK_THEME_QSS
+from vait.ui.theme import DARK_THEME_QSS, get_dark_palette
 from vait.ui.icons import create_app_icon
 from vait.ui.main_window import MainWindow
 
@@ -32,7 +32,8 @@ def main():
     font.setStyleHint(QFont.StyleHint.SansSerif)
     app.setFont(font)
 
-    # Apply modern stylesheet
+    # Apply unified dark palette and modern stylesheet
+    app.setPalette(get_dark_palette())
     app.setStyleSheet(DARK_THEME_QSS)
 
     # Launch main window
